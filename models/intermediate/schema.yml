@@ -1,0 +1,30 @@
+version: 2
+
+models:
+  - name: int_sessionized_events
+    description: >
+      Bridge from event to derived session. Exactly one row per event, so
+      joining it to stg_events can never fan out.
+    tests:
+      # The defining property of the sessionizer: no event can precede the
+      # start of the session it was assigned to.
+      - assert_expression: "occurred_at >= session_started_at"
+      # Sequence numbers start at 1 and are dense within a session.
+      - assert_expression: "event_seq_in_session >= 1"
+      - unique_combination:
+          columns: [session_id, event_seq_in_session]
+    columns:
+      - name: event_id
+        description: One row per event -- the join key back to stg_events.
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: stg_events
+              field: event_id
+      - name: session_id
+        tests: [not_null]
+      - name: anonymous_id
+        tests: [not_null]
+      - name: session_started_at
+        tests: [not_null]

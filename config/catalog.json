@@ -1,0 +1,31 @@
+{
+  "pages": [
+    { "page_path": "/", "page_type": "home", "title": "Northwind Outfitters" },
+    { "page_path": "/search", "page_type": "search", "title": "Search results" },
+    { "page_path": "/c/tents", "page_type": "category", "title": "Tents & shelters" },
+    { "page_path": "/c/packs", "page_type": "category", "title": "Backpacks" },
+    { "page_path": "/c/sleep", "page_type": "category", "title": "Sleeping gear" },
+    { "page_path": "/c/cook", "page_type": "category", "title": "Camp kitchen" },
+    { "page_path": "/p/tent-solo-1p", "page_type": "product", "title": "Solo 1P Tent" },
+    { "page_path": "/p/tent-basecamp-4p", "page_type": "product", "title": "Basecamp 4P Tent" },
+    { "page_path": "/p/pack-trail-40", "page_type": "product", "title": "Trail 40L Pack" },
+    { "page_path": "/p/pack-summit-65", "page_type": "product", "title": "Summit 65L Pack" },
+    { "page_path": "/p/bag-down-800", "page_type": "product", "title": "Down 800 Sleeping Bag" },
+    { "page_path": "/p/pad-inflate-r5", "page_type": "product", "title": "Inflate R5 Sleeping Pad" },
+    { "page_path": "/p/stove-jet-mini", "page_type": "product", "title": "JetMini Stove" },
+    { "page_path": "/p/cook-titanium-set", "page_type": "product", "title": "Titanium Cook Set" },
+    { "page_path": "/cart", "page_type": "cart", "title": "Your cart" },
+    { "page_path": "/checkout", "page_type": "checkout", "title": "Checkout" },
+    { "page_path": "/checkout/confirm", "page_type": "confirmation", "title": "Order confirmed" }
+  ],
+  "products": [
+    { "product_id": "tent-solo-1p", "name": "Solo 1P Tent", "category": "tents", "price_usd": 229.0 },
+    { "product_id": "tent-basecamp-4p", "name": "Basecamp 4P Tent", "category": "tents", "price_usd": 449.0 },
+    { "product_id": "pack-trail-40", "name": "Trail 40L Pack", "category": "packs", "price_usd": 159.0 },
+    { "product_id": "pack-summit-65", "name": "Summit 65L Pack", "category": "packs", "price_usd": 239.0 },
+    { "product_id": "bag-down-800", "name": "Down 800 Sleeping Bag", "category": "sleep", "price_usd": 319.0 },
+    { "product_id": "pad-inflate-r5", "name": "Inflate R5 Sleeping Pad", "category": "sleep", "price_usd": 129.0 },
+    { "product_id": "stove-jet-mini", "name": "JetMini Stove", "category": "cook", "price_usd": 69.0 },
+    { "product_id": "cook-titanium-set", "name": "Titanium Cook Set", "category": "cook", "price_usd": 94.0 }
+  ]
+}

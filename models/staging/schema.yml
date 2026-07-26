@@ -1,0 +1,48 @@
+version: 2
+
+models:
+  - name: stg_events
+    description: >
+      Typed, flattened clickstream events. One row per validated event; the
+      grain is guaranteed by raw.events' primary key on event_id.
+    tests:
+      # Product events without a product cannot join to dim_product. The
+      # consumer rejects these at the edge, so a failure here means something
+      # bypassed validation and wrote to raw.events directly.
+      - assert_expression: >
+          event_name not in ('product_view', 'add_to_cart')
+          or product_id is not null
+      - assert_expression: >
+          event_name <> 'purchase' or order_id is not null
+      # A negative or zero price is a data-entry fault, not a discount.
+      - assert_expression: "product_price_usd is null or product_price_usd > 0"
+      - assert_expression: "order_revenue_usd is null or order_revenue_usd >= 0"
+      - assert_expression: "quantity is null or quantity > 0"
+    columns:
+      - name: event_id
+        description: Producer-assigned UUID; the deduplication key.
+        tests: [not_null, unique]
+      - name: event_name
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - page_view
+                - product_view
+                - add_to_cart
+                - checkout_start
+                - purchase
+                - search
+      - name: anonymous_id
+        description: Tracking cookie. Identifies a device, not a person.
+        tests: [not_null]
+      - name: occurred_at
+        description: Event time as reported by the client, normalised to UTC.
+        tests: [not_null]
+      - name: ingested_at
+        description: When the consumer landed the row; drives the incremental watermark.
+        tests: [not_null]
+      - name: device_type
+        tests:
+          - accepted_values:
+              values: [desktop, mobile, tablet]

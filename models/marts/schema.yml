@@ -1,0 +1,181 @@
+version: 2
+
+models:
+  # ------------------------------------------------------------ dimensions --
+  - name: dim_visitor
+    description: One row per anonymous_id (a device, not a person).
+    tests:
+      - assert_expression: "last_seen_at >= first_seen_at"
+      - assert_expression: "lifetime_revenue_usd >= 0"
+      - assert_expression: "lifetime_page_views <= lifetime_events"
+    columns:
+      - name: visitor_key
+        tests: [not_null, unique]
+      - name: anonymous_id
+        tests: [not_null, unique]
+      - name: first_device_type
+        tests:
+          - accepted_values:
+              values: [desktop, mobile, tablet]
+
+  - name: dim_page
+    description: One row per page path observed in the stream.
+    tests:
+      - assert_expression: "lifetime_visitors <= lifetime_page_views"
+      - assert_expression: "page_path like '/%'"
+    columns:
+      - name: page_key
+        tests: [not_null, unique]
+      - name: page_path
+        tests: [not_null, unique]
+      - name: page_title
+        tests: [not_null]
+
+  - name: dim_product
+    description: One row per product seen in product or cart events.
+    tests:
+      - assert_expression: "latest_price_usd > 0"
+      - assert_expression: "max_price_usd >= min_price_usd"
+    columns:
+      - name: product_key
+        tests: [not_null, unique]
+      - name: product_id
+        tests: [not_null, unique]
+      - name: category
+        tests: [not_null]
+
+  # ----------------------------------------------------------------- facts --
+  - name: fct_sessions
+    description: One row per derived session.
+    tests:
+      - assert_expression: "ended_at >= started_at"
+      - assert_expression: "duration_seconds >= 0"
+      - assert_expression: "events > 0"
+      # Revenue can only exist on a session that actually purchased.
+      - assert_expression: "purchased or revenue_usd = 0"
+      - assert_expression: "not purchased or revenue_usd > 0"
+      # Orders and the purchase flag must agree in both directions.
+      - assert_expression: "(orders > 0) = purchased"
+      # A bounce is a single page view and nothing else.
+      - assert_expression: "not is_bounce or page_views <= 1"
+      - assert_expression: "unique_pages <= page_views"
+    columns:
+      - name: session_id
+        tests: [not_null, unique]
+      - name: anonymous_id
+        tests:
+          - not_null
+          - relationships:
+              to: dim_visitor
+              field: anonymous_id
+      - name: started_at
+        tests: [not_null]
+      - name: session_date
+        tests: [not_null]
+      - name: channel
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - direct
+                - organic_search
+                - paid_search
+                - paid_social
+                - organic_social
+                - email
+                - referral
+                - other
+
+  - name: fct_page_views
+    description: One row per page_view event.
+    tests:
+      - assert_expression: "seconds_on_page is null or seconds_on_page >= 0"
+      - assert_expression: "page_view_seq >= 1"
+      # Dwell time is only unknown on the exit page.
+      - assert_expression: "seconds_on_page is not null or is_exit_page"
+      - unique_combination:
+          columns: [session_id, page_view_seq]
+    columns:
+      - name: page_view_id
+        tests: [not_null, unique]
+      - name: session_id
+        tests:
+          - not_null
+          - relationships:
+              to: fct_sessions
+              field: session_id
+      - name: page_path
+        tests:
+          - not_null
+          - relationships:
+              to: dim_page
+              field: page_path
+      - name: occurred_at
+        tests: [not_null]
+
+  - name: fct_funnel_steps
+    description: One row per session per funnel step reached, in sequence.
+    tests:
+      - assert_expression: "step_index between 1 and 5"
+      - assert_expression: "reached_at >= session_started_at"
+      - assert_expression: "seconds_from_session_start >= 0"
+      # A session cannot reach the same step twice.
+      - unique_combination:
+          columns: [session_id, step_index]
+    columns:
+      - name: session_id
+        tests:
+          - not_null
+          - relationships:
+              to: fct_sessions
+              field: session_id
+      - name: step_name
+        tests:
+          - not_null
+          - accepted_values:
+              values: [page_view, product_view, add_to_cart, checkout_start, purchase]
+      - name: channel
+        tests: [not_null]
+
+  # ------------------------------------------------------------ aggregates --
+  - name: agg_daily_traffic
+    description: Daily rollup by channel and device.
+    tests:
+      - assert_expression: "sessions > 0"
+      - assert_expression: "visitors <= sessions"
+      - assert_expression: "bounce_rate_pct between 0 and 100"
+      - assert_expression: "conversion_rate_pct between 0 and 100"
+      - assert_expression: "sessions_purchased <= sessions_started_checkout"
+      - assert_expression: "sessions_started_checkout <= sessions_added_to_cart"
+      - assert_expression: "sessions_added_to_cart <= sessions_viewed_product"
+      - assert_expression: "revenue_usd >= 0"
+      - unique_combination:
+          columns: [session_date, channel, device_type]
+    columns:
+      - name: session_date
+        tests: [not_null]
+      - name: channel
+        tests: [not_null]
+
+  - name: agg_funnel_conversion
+    description: Funnel step-through and drop-off, per channel and overall.
+    tests:
+      # The invariant that catches a miscounted funnel: no step can have
+      # more sessions than the step before it, and none can exceed entry.
+      - assert_expression: "overall_conversion_pct between 0 and 100"
+      - assert_expression: >
+          step_conversion_pct is null or step_conversion_pct between 0 and 100
+      - assert_expression: "sessions_reached <= sessions_entered"
+      - assert_expression: >
+          prev_step_sessions is null or sessions_reached <= prev_step_sessions
+      - assert_expression: "sessions_lost >= 0"
+      - assert_expression: "step_index = 1 or prev_step_sessions is not null"
+      - unique_combination:
+          columns: [channel, step_index]
+    columns:
+      - name: channel
+        tests: [not_null]
+      - name: step_name
+        tests: [not_null]
+      - name: sessions_reached
+        tests: [not_null]
